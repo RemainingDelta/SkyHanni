@@ -13,8 +13,10 @@ import at.hannibal2.skyhanni.utils.ItemUtils
 import at.hannibal2.skyhanni.utils.ItemUtils.extraAttributes
 import at.hannibal2.skyhanni.utils.ItemUtils.getLore
 import at.hannibal2.skyhanni.utils.ItemUtils.takeUnlessEmpty
+import at.hannibal2.skyhanni.utils.LorenzRarity
 import at.hannibal2.skyhanni.utils.NeuInternalName
 import at.hannibal2.skyhanni.utils.NeuInternalName.Companion.toInternalName
+import at.hannibal2.skyhanni.utils.NeuItems
 import at.hannibal2.skyhanni.utils.NumberUtil.romanToDecimal
 import at.hannibal2.skyhanni.utils.RegexUtils.firstMatcher
 import at.hannibal2.skyhanni.utils.RegexUtils.matchMatcher
@@ -73,8 +75,6 @@ class ItemResolutionQuery {
             "(?<name>§.[^§]+)(?: §d§lNEW SHARD)?",
         )
 
-        val petRarities = listOf("COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC")
-
         private val BAZAAR_ENCHANTMENT_PATTERN = "ENCHANTMENT_(\\D*)_(\\d+)".toPattern()
 
         private var renamedEnchantments: Map<String, String> = mapOf()
@@ -121,6 +121,7 @@ class ItemResolutionQuery {
             var bestMatch: NeuInternalName? = null
             var bestMatchLength = -1
             loop@ for (internalName in candidateInternalNames.map { it.toInternalName() }) {
+                if (NeuItems.isIgnoredDisplayNameItem(internalName)) continue
                 val unCleanItemDisplayName: String = EnoughUpdatesManager.getDisplayName(internalName)
                 var cleanItemDisplayName = unCleanItemDisplayName.removeColor()
                 if (cleanItemDisplayName.isEmpty()) continue
@@ -213,6 +214,7 @@ class ItemResolutionQuery {
             "BALLOON_HAT_2024", "BALLOON_HAT_2025" -> resolveBalloonHatName()
             "ATTRIBUTE_SHARD" -> resolveAttributeShardName()
             "CAKE_HAT_2026" -> resolveCakeHatName()
+            "FACTION_RABBIT" -> resolveFactionRabbitName()
             else -> resolvedName
         }
     }
@@ -224,7 +226,7 @@ class ItemResolutionQuery {
             val petInfoObject = ConfigManager.gson.fromJson(petInfo, JsonObject::class.java)
             val petId = petInfoObject["type"].asString
             val petTier = petInfoObject["tier"].asString
-            val rarityIndex = petRarities.indexOf(petTier)
+            val rarityIndex = LorenzRarity.getByNameOrError(petTier).neuPetIndex
             val rawInternalName = petId.uppercase() + ";" + rarityIndex
             return rawInternalName.toInternalName()
         } catch (e: Exception) {
@@ -304,6 +306,12 @@ class ItemResolutionQuery {
     private fun resolveCakeHatName(): NeuInternalName {
         val color = getExtraAttributes().getStringOrDefault("party_hat_color")
         val rawInternalName = "CAKE_HAT_2026_" + color.uppercase()
+        return rawInternalName.toInternalName()
+    }
+
+    private fun resolveFactionRabbitName(): NeuInternalName {
+        val id = getExtraAttributes().getStringOrDefault("faction_rabbit_id")
+        val rawInternalName = "FACTION_RABBIT_" + id.uppercase()
         return rawInternalName.toInternalName()
     }
 
